@@ -35,7 +35,8 @@
 - [功能](#功能)
 - [界面预览](#界面预览)
 - [界面结构](#界面结构)
-- [快速开始](#快速开始)
+- [快速部署](#快速部署)
+- [手动安装](#手动安装)
 - [配置](#配置)
 - [使用速查](#使用速查)
 - [接口](#接口)
@@ -112,9 +113,88 @@
 
 ---
 
-## 快速开始
+## 快速部署
 
-**系统要求**：Linux（systemd）+ Node.js 18 及以上；nginx 用于反代静态文件与 `/ws`。
+> 推荐方式。不想用脚本就跳到 [手动安装](#手动安装)。
+
+脚本 `deploy/install.sh` 把「拷文件 → 装依赖 → 写配置 → systemd → nginx → 自检」串成一步。
+要求：Linux（systemd）+ root + Node.js 18 及以上（脚本会检查，不满足直接报错，不擅自装包）。
+
+### 方式一：一条命令（没有仓库、没有包）
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Oppenhello/server-panel/main/deploy/install.sh \
+  | sudo bash -s -- --port 3100
+```
+
+拉 main 分支快照 → 装到 `/opt/server-panel` → 配 nginx → 生成随机口令并**只打印一次**。
+
+### 方式二：先 clone，再装
+
+```bash
+git clone https://github.com/Oppenhello/server-panel.git
+cd server-panel
+sudo ./deploy/install.sh
+```
+
+### 方式三：上传发行包（内网 / 离线）
+
+本地打包（`release/` 下已有）：
+
+```bash
+git archive --format=tar.gz --prefix=server-panel-1.0.0/ -o server-panel-1.0.0.tar.gz HEAD
+```
+
+传到服务器再装：
+
+```bash
+scp server-panel-1.0.0.tar.gz root@<服务器>:/root/
+ssh root@<服务器>
+tar -xzf server-panel-1.0.0.tar.gz && cd server-panel-1.0.0
+sudo ./deploy/install.sh --server-name panel.example.com
+```
+
+### 参数
+
+| 参数 | 默认 | 说明 |
+|---|---|---|
+| `--port N` | `3100` | 后端监听端口（nginx 反代到它） |
+| `--user NAME` | `admin` | 登录用户名 |
+| `--pass PASS` | 随机生成 | 登录口令；不传则生成 20 位并打印一次 |
+| `--server-name NAME` | `_` | 写进 nginx `server_name`；有域名就填域名 |
+| `--no-nginx` | 关 | 不装 nginx，Node 直接托管静态文件（`0.0.0.0`，仅内网/试跑） |
+| `--dir PATH` | `/opt/server-panel` | 程序目录 |
+| `--web PATH` | `/var/www/panel` | 静态文件目录 |
+| `--uninstall` | — | 卸载（保留远程主机清单） |
+
+### 脚本做了什么
+
+1. 检查 root、Node ≥ 18、npm；
+2. 程序文件 → `$APP_DIR`，`npm ci --omit=dev`（失败回退 `npm install`）；
+3. 静态文件 → `$WEB_DIR`；
+4. 生成 `/etc/server-panel.env`（`600`，口令随机，已存在则**保留原口令**）；
+5. 写 systemd 单元（`ExecStart` 用检测到的 node 绝对路径，避免 `/usr/bin/node` 不存在）→ 开机自启 → 启动 → 校验是否 active；
+6. 写 `/etc/nginx/conf.d/server-panel.conf`（静态 + `/api/` 与 `/ws` 反代），`nginx -t` 通过才 reload；
+7. CentOS/Rocky 且 SELinux 为 Enforcing 时，自动 `setsebool -P httpd_can_network_connect 1`（不放开这条，nginx 反代会 502）；
+8. 本地 `curl /api/ping` 自检，最后打印访问地址与口令。
+
+### 升级 / 卸载
+
+```bash
+sudo ./deploy/install.sh          # 再跑一次就是升级：覆盖程序与静态文件，口令不变
+sudo ./deploy/install.sh --uninstall
+```
+
+### 为什么不做 Docker 镜像
+
+面板要读宿主机 `/proc`、调 `systemctl`、改 `/etc` 下的文件。容器里跑要么 `--privileged` + host PID + 挂载 systemd 才能工作（等于没有隔离，还更绕），
+要么功能残缺（进程/服务/网络全是空）。它的形态本来就是「宿主机上的一个 systemd 服务」，所以这里只提供 systemd 部署。
+
+---
+
+## 手动安装
+
+不想用脚本、或者要自定义布局时，按下面四步来。
 
 ### 1. 本机试跑（不装 nginx 也能跑）
 
@@ -291,9 +371,10 @@ server-panel/
 │   ├── style.css          # 设计系统（双主题 token，无框架）
 │   └── app.js             # 全部前端逻辑（单 IIFE，无构建）
 ├── deploy/
+│   ├── install.sh            # 一键安装 / 升级 / 卸载
 │   ├── server-panel.service
 │   ├── server-panel.env.example
-│   └── nginx-panel.conf   # /api/ 与 /ws 反代片段
+│   └── nginx-panel.conf      # /api/ 与 /ws 反代片段（手动部署用）
 ├── docs/
 │   ├── UI_DESIGN_SYSTEM.md
 │   └── screenshots/       # README 用的界面截图（虚构数据）
@@ -344,6 +425,9 @@ node tools/remote-fs-test.js http://127.0.0.1 admin '<PANEL_PASS>'
 | 上传大文件失败 | 本机上限 64MB、远端 32MB | 大文件走 SFTP / scp |
 | Windows 下点文件夹进不去子目录 | 服务端要求路径以 `/` 开头，`D:\xxx` 被判非法 | 仅开发模式受限，见 [已知限制](#已知限制) |
 | 重启服务后要重新登录 | 会话存在内存里（单实例） | 预期行为 |
+| 脚本装完浏览器打开是 502 | nginx 反代被 SELinux 拦，或后端没起来 | `setsebool -P httpd_can_network_connect 1`；`journalctl -u server-panel -n 30` |
+| 脚本报「Node 版本过低」 | 系统自带 node 太旧 | `dnf module install -y nodejs:20` 或 nodesource 源 |
+| 脚本报「未检测到 nginx」 | 机器上没装 nginx | 装一个，或加 `--no-nginx` 直连端口 |
 
 ---
 
@@ -381,6 +465,7 @@ node tools/remote-fs-test.js http://127.0.0.1 admin '<PANEL_PASS>'
 - 修复：未声明 `type` 的输入框退回浏览器默认立体边框，悬停时边框一半深一半浅。
 - 依赖：`package.json` 补上 `ssh2`（此前后端代码已在用，README 也已声明，但依赖里漏写），新增 `package-lock.json`。
 - 文档：README 增加界面截图（`docs/screenshots/`，均为虚构数据），补充故障排查与更新记录。
+- 部署：新增 `deploy/install.sh` 一键安装脚本，支持 `curl | bash`、clone、上传包三种入口，一条命令完成安装/升级/卸载。
 
 **V1.0.0** — 首个公开版本，功能与接口在此定型。
 
