@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0a0b0d">
 <script>(function(){try{var t=localStorage.getItem("sp.theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();</script>
 <title>服务器控制台</title>
-<link rel="stylesheet" href="./style.css?v=19">
+<link rel="stylesheet" href="./style.css?v=22">
 <script>try{ if (location.host) document.title = "服务器控制台 · " + location.host; }catch(e){}</script>
 </head>
 <body>
@@ -22,6 +22,16 @@
       </button>
 <div class="login-wrap" id="login-wrap">
   <form class="login" id="login-form" autocomplete="off">
+    <div class="lg-brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.2" y="4.2" width="17.6" height="6.6" rx="1.6" />
+          <rect x="3.2" y="13.2" width="17.6" height="6.6" rx="1.6" />
+          <path d="M6.6 7.5h.01M6.6 16.5h.01" />
+        </svg>
+      </span>
+      <span class="lg-brand-name">Server Panel</span>
+    </div>
     <h1>服务器控制台</h1>
     <p class="lg-sub">登录后选择要管理的服务器</p>
 
@@ -48,6 +58,13 @@
   <header class="topbar">
     <button class="btn ghost sm back-btn" id="btn-back" type="button" hidden>← 服务器</button>
     <div class="brand">
+      <span class="mark sm" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.2" y="4.2" width="17.6" height="6.6" rx="1.6" />
+          <rect x="3.2" y="13.2" width="17.6" height="6.6" rx="1.6" />
+          <path d="M6.6 7.5h.01M6.6 16.5h.01" />
+        </svg>
+      </span>
       <i class="dot" id="live-dot"></i>
       <b id="h-host">—</b>
       <span class="os" id="h-os">—</span>
@@ -280,7 +297,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="tip" id="tip" hidden></div>
 
-<script src="./app.js?v=19"></script>
+<script src="./app.js?v=21"></script>
 
 </body>
 </html>

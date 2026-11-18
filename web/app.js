@@ -514,7 +514,7 @@
   });
 
   /* ---------------- 文件管理 ---------------- */
-  var FS = { dir: '/var/www', entries: [], cur: null, mtime: 0, size: 0, mode: '', dirty: false };
+  var FS = { dir: '/', entries: [], cur: null, mtime: 0, size: 0, mode: '', dirty: false };
 
   /* 三个居中元信息：大小 / 修改时间 / 权限 */
   function setMeta(size, mtime, mode, prefix) {
@@ -602,6 +602,8 @@
   async function fsLoad(dir, quiet) {
     if (FS.dirty && !quiet && !window.confirm('当前文件还没保存，仍要切换目录吗？')) return;
     setStatus('读取目录…');
+    /* 地址栏先跟随目标目录：列目录失败时也不会停在上一个路径上 */
+    $('fs-path').value = dir;
     try {
       var r = await api('/api/fs/list?dir=' + encodeURIComponent(dir) + '&host=' + encodeURIComponent(S.hostId || 'local'));
       if (!r.ok) { setStatus(r.err || '读取失败', true); return; }
@@ -969,8 +971,10 @@ function openHost(id) {
     startRemote(id);
   } else {
     stopRemote();
-    fsLoad('/', true);
   }
+  /* 不论本机还是 SSH 远端，进入主机都从根目录开始：
+     否则远程主机不会加载文件列表，面板会停留在上一台机器的路径与内容上。 */
+  fsLoad('/', true);
 }
 
 function startRemote(id) {
@@ -1025,7 +1029,13 @@ async function submitHost() {
   const old = btn.textContent;
   btn.textContent = '连接中…';
   try {
-    await api('/api/hosts/add', body);
+    const r = await api('/api/hosts/add', body);
+    /* api() 对 4xx 不抛异常（它只是把响应 JSON 返回），所以必须显式判 ok，
+       否则服务端拒绝了也照样弹「已添加」，列表里却没有——看起来像"加成功了但不见了"。 */
+    if (!r.ok) {
+      $('hm-err').textContent = r.error || r.err || ('添加失败（HTTP ' + r.status + '）');
+      return;
+    }
     closeHostModal();
     toast('已添加「' + body.name + '」');
     loadHosts();
@@ -1045,7 +1055,8 @@ function delHost(id) {
     '从列表里移除「' + (h ? h.name : id) + '」？只删除面板里的连接记录，不会影响那台服务器。',
     async function () {
       try {
-        await api('/api/hosts/delete', { id: id });
+        const r = await api('/api/hosts/delete', { id: id });
+        if (!r.ok) { toast(r.error || r.err || '移除失败', true); return; }
         toast('已移除');
         loadHosts();
       } catch (e) {
