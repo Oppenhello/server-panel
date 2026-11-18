@@ -295,7 +295,8 @@ server-panel/
 │   ├── server-panel.env.example
 │   └── nginx-panel.conf   # /api/ 与 /ws 反代片段
 ├── docs/
-│   └── UI_DESIGN_SYSTEM.md
+│   ├── UI_DESIGN_SYSTEM.md
+│   └── screenshots/       # README 用的界面截图（虚构数据）
 └── tools/                 # 回归与验收脚本
 ```
 
