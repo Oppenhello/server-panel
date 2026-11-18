@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0b0d">
+<script>(function(){try{var t=localStorage.getItem("sp.theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();</script>
+<title>服务器控制台</title>
+<link rel="stylesheet" href="./style.css?v=19">
+<script>try{ if (location.host) document.title = "服务器控制台 · " + location.host; }catch(e){}</script>
+</head>
+<body>
+
+<!-- 登录 -->
+<button class="tsw-btn theme-fab" id="btn-theme-login" type="button" role="switch" aria-checked="false" aria-label="切换白天 / 夜晚" title="切换白天 / 夜晚">
+        <svg class="tsw-ico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" />
+          <path class="tsw-ray" d="M12 3.4v2.2M12 18.4v2.2M3.4 12h2.2M5.9 5.9l1.6 1.6M5.9 18.1l1.6-1.6" />
+          <path class="tsw-half" d="M12 7a5 5 0 0 1 0 10 8 8 0 0 0 0-10Z" />
+        </svg>
+      </button>
+<div class="login-wrap" id="login-wrap">
+  <form class="login" id="login-form" autocomplete="off">
+    <h1>服务器控制台</h1>
+    <p class="lg-sub">登录后选择要管理的服务器</p>
+
+    <div class="lg-host"><span>目标主机</span><b id="login-host">—</b></div>
+
+    <label class="field"><span>账号</span>
+      <input type="text" id="lg-user" name="username" value="admin" autocomplete="username" spellcheck="false" aria-label="用户名">
+    </label>
+    <label class="field"><span>密码</span>
+      <input type="password" id="lg-pass" name="password" autocomplete="current-password" placeholder="PANEL_PASS" aria-label="口令">
+    </label>
+
+    <button class="btn primary block" type="submit" id="lg-btn">登录</button>
+    <p class="lg-err" id="lg-err" role="alert" aria-live="polite"></p>
+    <p class="lg-note">该控制台以 root 身份执行命令，请仅在可信网络使用，并保持密码强度。</p>
+  </form>
+</div>
+
+<!-- 主界面 -->
+<div class="app" id="app" hidden>
+
+  <div class="conn" id="conn" role="status" aria-live="polite" hidden><i></i><span>实时连接中断，正在重连…（页面上的数据会停止刷新）</span></div>
+
+  <header class="topbar">
+    <button class="btn ghost sm back-btn" id="btn-back" type="button" hidden>← 服务器</button>
+    <div class="brand">
+      <i class="dot" id="live-dot"></i>
+      <b id="h-host">—</b>
+      <span class="os" id="h-os">—</span>
+    </div>
+    <div class="meta">
+      <span class="meta-item" id="h-uptime">—</span>
+      <span class="meta-item" id="h-load">—</span>
+      <span class="clock" id="h-clock">--:--:--</span>
+      <button class="tsw-btn" id="btn-theme" type="button" role="switch" aria-checked="false" aria-label="切换白天 / 夜晚" title="切换白天 / 夜晚">
+        <svg class="tsw-ico" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="5" />
+          <path class="tsw-ray" d="M12 3.4v2.2M12 18.4v2.2M3.4 12h2.2M5.9 5.9l1.6 1.6M5.9 18.1l1.6-1.6" />
+          <path class="tsw-half" d="M12 7a5 5 0 0 1 0 10 8 8 0 0 0 0-10Z" />
+        </svg>
+      </button>
+      <button class="btn ghost sm" id="btn-logout">退出</button>
+    </div>
+  </header>
+
+  <section class="srv-view" id="srv-view" hidden>
+    <header class="srv-head">
+      <div>
+        <h2>服务器</h2>
+      </div>
+      <button class="btn primary sm" id="btn-add-host" type="button">添加服务器</button>
+    </header>
+    <div class="srv-table">
+      <div class="srv-head-row"><span>服务器</span><span>地址</span><span>内存</span><span>硬盘</span><span></span></div>
+      <div class="srv-rows" id="srv-list"></div>
+    </div>
+  </section>
+
+  <main id="dash-view" hidden>
+    <section class="kpis">
+      <article class="card">
+        <div class="kpi-top"><span class="kpi-label">CPU 使用率</span><span class="kpi-val" id="c-cpu">0%</span></div>
+        <div class="meter"><i id="c-cpu-bar"></i></div>
+        <div class="ticks"><span>25</span><span>50</span><span>75</span></div>
+        <div class="cores" id="c-cores"></div>
+        <canvas class="spark" id="c-cpu-spark" height="44"></canvas>
+        <div class="kpi-foot" id="c-cpu-info">—</div>
+      </article>
+
+      <article class="card">
+        <div class="kpi-top"><span class="kpi-label">内存占用</span><span class="kpi-val" id="c-mem">—</span></div>
+        <div class="meter"><i id="c-mem-bar"></i></div>
+        <div class="kv" id="c-mem-kv"></div>
+        <canvas class="spark" id="c-mem-spark" height="44"></canvas>
+      </article>
+
+      <article class="card">
+        <div class="kpi-top"><span class="kpi-label">网络吞吐</span><span class="kpi-val" id="c-net">—</span></div>
+        <div class="kv" id="c-net-kv"></div>
+        <canvas class="spark" id="c-net-spark" height="44"></canvas>
+        <div class="kpi-foot" id="c-net-info">—</div>
+      </article>
+
+      <article class="card">
+        <div class="kpi-top"><span class="kpi-label">磁盘占用</span><span class="kpi-val" id="c-disk">—</span></div>
+        <div class="disks" id="c-disks"></div>
+      </article>
+    </section>
+
+    <section class="split">
+      <article class="panel">
+        <header class="ph"><h2>进程</h2><span class="hint">按 CPU 排序 · Top 14</span></header>
+        <div class="table-wrap">
+          <table id="proc-table">
+            <thead><tr><th>PID</th><th>进程</th><th class="r">CPU</th><th class="r">MEM</th><th class="r">RSS</th><th class="ta"></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <header class="ph"><h2>服务</h2><span class="hint"><b id="svc-count">0</b> 个单元</span></header>
+        <div class="svc-tools">
+          <input type="text" id="svc-filter" placeholder="筛选单元名，如 nginx / sshd" spellcheck="false">
+        </div>
+        <div class="svc-list" id="svc-list"></div>
+      </article>
+    </section>
+
+    <section class="panel files-panel">
+      <header class="ph">
+        <h2>文件</h2>
+        <span class="hint" id="fs-hint">浏览 · 下载 · 上传 · 在线编辑</span>
+      </header>
+      <div class="fs-bar">
+        <button class="btn ghost sm" id="fs-up" title="上一级">↑</button>
+        <input type="text" id="fs-path" class="fs-path" value="/" spellcheck="false" autocomplete="off">
+        <button class="btn ghost sm" id="fs-go">打开</button>
+        <span class="fs-sep"></span>
+        <button class="btn ghost sm" id="fs-newfile">新建文件</button>
+        <button class="btn ghost sm" id="fs-newdir">新建目录</button>
+        <button class="btn ghost sm" id="fs-upload">上传</button>
+        <input type="file" id="fs-input" multiple hidden>
+        <span class="fs-tip">拖文件到此处上传 · 拖列表里的文件到桌面即可下载</span>
+      </div>
+      <div class="fs-main">
+        <div class="fs-list-wrap">
+          <div class="fs-head"><span>名称</span><span class="r">大小</span><span>修改时间</span><span>权限</span><span></span></div>
+          <div class="fs-list" id="fs-list"></div>
+        </div>
+        <div class="fs-editor" id="fs-editor" hidden>
+          <header class="fs-editor-h">
+            <div class="fs-ed-top">
+              <b id="fs-ed-name">—</b>
+              <span class="fs-grow"></span>
+              <button class="ico-btn" id="fs-expand" data-tip="放大编辑" aria-label="放大编辑">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2H2v4M10 14h4v-4M2 2l5 5M14 14l-5-5"/></svg>
+              </button>
+              <button class="btn primary sm" id="fs-save">保存</button>
+              <button class="btn ghost sm" id="fs-close">关闭</button>
+            </div>
+            <div class="fs-ed-meta">
+              <span><i>大小</i><b id="fs-ed-size">—</b></span>
+              <span><i>修改时间</i><b id="fs-ed-time">—</b></span>
+              <span><i>权限</i><b id="fs-ed-mode">—</b></span>
+            </div>
+          </header>
+          <textarea id="fs-text" spellcheck="false" wrap="off"></textarea>
+          <div class="fs-status" id="fs-status">Ctrl+S 保存 · Tab 缩进 · 冲突时会提示</div>
+        </div>
+      </div>
+      <div class="fs-drop" id="fs-drop" hidden>松开以上传到当前目录</div>
+    </section>
+
+    <footer class="foot" id="foot">—</footer>
+  </main>
+</div>
+
+<!-- 日志弹层 -->
+<div class="modal" id="log-modal" hidden>
+  <div class="modal-box log-box">
+    <header><b id="log-title">日志</b><button class="btn ghost sm" id="log-close">关闭</button></header>
+    <pre id="log-body">加载中…</pre>
+  </div>
+</div>
+
+<!-- 输入小卡片（v10：替代 window.prompt） -->
+<div class="modal" id="prompt-modal" hidden>
+  <div class="modal-box small">
+    <h3 id="pm-title">重命名</h3>
+    <p id="pm-hint" class="hint"></p>
+    <input type="text" id="pm-input" spellcheck="false" autocomplete="off">
+    <div class="cf-actions">
+      <button class="btn ghost" id="pm-cancel">取消</button>
+      <button class="btn" id="pm-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 确认弹层 -->
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-box small">
+    <h3 id="cf-title">确认操作</h3>
+    <p id="cf-text" class="hint"></p>
+    <input type="text" id="cf-input" placeholder="输入文件名确认" spellcheck="false">
+    <div class="cf-actions">
+      <button class="btn ghost" id="cf-cancel">取消</button>
+      <button class="btn danger" id="cf-ok">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="fs-modal" hidden>
+  <div class="modal-box fs-modal-box">
+    <header class="fs-big-head">
+      <div class="fs-ed-top">
+        <b id="fs-big-name">—</b>
+        <span class="fs-grow"></span>
+        <button class="btn primary sm" id="fs-big-save">保存</button>
+        <button class="ico-btn" id="fs-big-close" data-tip="关闭 (Esc)" aria-label="关闭">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="fs-ed-meta">
+        <span><i>大小</i><b id="fs-big-size">—</b></span>
+        <span><i>修改时间</i><b id="fs-big-time">—</b></span>
+        <span><i>权限</i><b id="fs-big-mode">—</b></span>
+      </div>
+    </header>
+    <textarea id="fs-text-big" spellcheck="false" wrap="off"></textarea>
+    <footer class="fs-big-foot"><span id="fs-big-status">Ctrl+S 保存 · Esc 关闭</span></footer>
+  </div>
+</div>
+
+<!-- 添加服务器 -->
+<div class="modal" id="host-modal" hidden>
+  <div class="modal-box host-box">
+    <header class="hb-head">
+      <div>
+        <h3>添加服务器</h3>
+        <p class="hb-sub">通过 SSH 采集，需要目标机 sshd 可达</p>
+      </div>
+      <button class="ico-btn" id="hm-close-x" data-tip="关闭" aria-label="关闭">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </header>
+
+    <div class="hb-form">
+      <label class="hfield span2"><span>名称</span>
+        <input id="hm-name" placeholder="例如 生产机 A" autocomplete="off">
+      </label>
+      <label class="hfield span2"><span>地址</span>
+        <input id="hm-host" placeholder="192.168.1.10 或 example.com" autocomplete="off" spellcheck="false">
+      </label>
+      <label class="hfield"><span>端口</span><input id="hm-port" value="22" inputmode="numeric" autocomplete="off"></label>
+      <label class="hfield"><span>用户名</span><input id="hm-user" value="root" autocomplete="off" spellcheck="false"></label>
+      <label class="hfield"><span>认证方式</span>
+        <select id="hm-auth"><option value="password">密码</option><option value="key">私钥文件</option></select>
+      </label>
+      <label class="hfield" id="hm-pass-wrap"><span>密码</span><input type="password" id="hm-pass" autocomplete="new-password" placeholder="SSH 登录密码"></label>
+      <label class="hfield span2" id="hm-key-wrap" hidden><span>私钥路径</span>
+        <input id="hm-key" placeholder="/root/.ssh/id_rsa" autocomplete="off" spellcheck="false">
+        <i class="hfield-tip">填写服务器上的路径，面板以 root 运行、需要能读到该文件</i>
+      </label>
+    </div>
+
+    <p class="lg-err hb-err" id="hm-err" role="alert" aria-live="polite"></p>
+
+    <footer class="hb-foot">
+      <button class="btn ghost" id="hm-cancel" type="button">取消</button>
+      <button class="btn primary" id="hm-ok" type="button">保存并连接</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="./app.js?v=19"></script>
+
+</body>
+</html>

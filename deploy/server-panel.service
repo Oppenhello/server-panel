@@ -1,0 +1,16 @@
+[Unit]
+Description=Server Panel (monitor & control)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/server-panel
+EnvironmentFile=/etc/server-panel.env
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+User=root
+LimitNOFILE=8192
+
+[Install]
+WantedBy=multi-user.target
